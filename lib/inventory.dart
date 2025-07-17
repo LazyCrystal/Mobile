@@ -1,26 +1,5 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const InventoryApp());
-}
-
-class InventoryApp extends StatelessWidget {
-  const InventoryApp({super.key});
-//hi yizheng here
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Stitch Design',
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0D141C),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        fontFamily: 'Inter',
-      ),
-      home: const InventoryScreen(),
-    );
-  }
-}
-
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
 
@@ -79,6 +58,7 @@ class InventoryScreen extends StatelessWidget {
         ],
         centerTitle: true,
         backgroundColor: const Color(0xFFF8FAFC),
+        elevation: 0,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,40 +155,6 @@ class InventoryScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFFF8FAFC),
-        selectedItemColor: const Color(0xFF0D141C),
-        unselectedItemColor: const Color(0xFF49739C),
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        currentIndex: 3, // Inventory selected
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.local_shipping, size: 24),
-            label: 'Vehicles',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today, size: 24),
-            label: 'Schedule',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people, size: 24),
-            label: 'CRM',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory, size: 24),
-            label: 'Inventory',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description, size: 24),
-            label: 'Invoices',
-          ),
-        ],
-        onTap: (index) {
-          // TODO: Implement navigation
-        },
       ),
     );
   }
