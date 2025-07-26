@@ -33,7 +33,7 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
 
   // Financial calculations
   double _subtotal = 0.0;
-  double _taxesRate = 0.07; // Example tax rate (7%)
+  final _taxesRate = 0.06;
   double _taxesAmount = 0.0;
   double _discountRate = 0.0; // Example discount rate (0%)
   double _discountAmount = 0.0;
