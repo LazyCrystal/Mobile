@@ -22,7 +22,7 @@ class InventoryScreen extends StatelessWidget {
         'partNumber': 'Part #11223',
         'name': 'Spark Plug',
         'quantity': 50,
-        'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAyk-S2moT7gBZ-w47Uy2fL8FQzeMnFDb_zA9Yts4BBH46Hl4CT218DZcOY_WIGYkbvdy6pR4L84UjIXwd0_wmlkDVbhavY3gGUsiGtBPLeYf_L_PClZcRNk6o1PhOER4zn3dswrRm0djDtEOftOClv2hUfxBaicwgqFcgnZuFLUV4FGom9iu_PiWCG1QpD88ju7bTrQJIbTrzXItTP7BrvzZuamRC98P0EM5xYBde5IqoHEPIadE2SJ06ewY3NoKv1JMFSocpFA6yU'
+        'imageUrl': 'https://www.e3sparkplugs.com/cdn/shop/articles/BlueOceanConsulting-322164-two-spark-plugs-blogbanner1.jpg?v=1725638401&width=1024'
       },
       {
         'partNumber': 'Part #33445',
@@ -80,15 +80,26 @@ class InventoryScreen extends StatelessWidget {
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Parts',
-              style: TextStyle(
-                color: Color(0xFF0D141C),
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Parts',
+                  style: TextStyle(
+                    color: Color(0xFF0D141C),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.sort, color: Color(0xFF49739C), size: 20),
+                  onPressed: () {
+                    // TODO: Implement re-arrange functionality
+                  },
+                ),
+              ],
             ),
           ),
           Expanded(
