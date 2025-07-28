@@ -262,10 +262,10 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           );
         },
         backgroundColor: const Color(0xFF3D98F4),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
