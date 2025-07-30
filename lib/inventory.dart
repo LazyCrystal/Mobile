@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+//way to link to firebase
+//FirebaseFirestore.instance.collection('Invenrtory')
+
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
 
