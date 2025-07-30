@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDuntfvwTkxWpknXE3PJXDs4mLfH8icyOc',
-    appId: '1:545680934793:android:358fc54ef953a42dbb4358',
+    appId: '1:545680934793:android:4152d72dde3e14e2bb4358',
     messagingSenderId: '545680934793',
     projectId: 'mobile-assignment-81ceb',
     storageBucket: 'mobile-assignment-81ceb.firebasestorage.app',
@@ -60,30 +60,29 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDCsC3lFwaZS2xA1i-Zq3CCoYucdi59abM',
-    appId: '1:545680934793:ios:4269c94285cbcc95bb4358',
+    appId: '1:545680934793:ios:03b845ef3218ee97bb4358',
     messagingSenderId: '545680934793',
     projectId: 'mobile-assignment-81ceb',
     storageBucket: 'mobile-assignment-81ceb.firebasestorage.app',
-    iosBundleId: 'tarumt.edu.mobileAssignment',
+    iosBundleId: 'com.example.mobileassignment1',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyDCsC3lFwaZS2xA1i-Zq3CCoYucdi59abM',
-    appId: '1:545680934793:ios:4269c94285cbcc95bb4358',
+    appId: '1:545680934793:ios:03b845ef3218ee97bb4358',
     messagingSenderId: '545680934793',
     projectId: 'mobile-assignment-81ceb',
     storageBucket: 'mobile-assignment-81ceb.firebasestorage.app',
-    iosBundleId: 'tarumt.edu.mobileAssignment',
+    iosBundleId: 'com.example.mobileassignment1',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyBuVcQvre0qUz-Pdn6mtu-fFlFbDSED_4g',
-    appId: '1:545680934793:web:dabaffb9b4d1b6cabb4358',
+    appId: '1:545680934793:web:825adfcd4e4286e3bb4358',
     messagingSenderId: '545680934793',
     projectId: 'mobile-assignment-81ceb',
     authDomain: 'mobile-assignment-81ceb.firebaseapp.com',
     storageBucket: 'mobile-assignment-81ceb.firebasestorage.app',
-    measurementId: 'G-T7Q5FR3DVF',
+    measurementId: 'G-F81GRBGS4H',
   );
-
 }

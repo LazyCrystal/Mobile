@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "tarumt.edu.mobile_assignment"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -42,5 +42,3 @@ android {
 flutter {
     source = "../.."
 }
-
-apply(plugin = "com.google.gms.google-services")

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'invoice.dart'; // Import the invoice.dart file
-import 'inventory.dart'; // Import the inventory.dart file
-import 'database_test.dart'; // Import your new FirebaseTestPage
+import 'package:mobile_assignment/Schedule.dart';
+import 'invoice.dart';
+import 'inventory.dart';
+import 'Customer.dart';
+import 'home_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() {
   runApp(const MyApp());
@@ -43,11 +47,12 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const HomePage(), // Set HomePage as the default starting page
     );
   }
 }
 
+// You can keep HomeScreen and other classes if needed, but they won't be the default
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -56,17 +61,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Set initial index to 5 for the new Firebase Test tab
-  int _selectedIndex = 5; // Changed from 3 to 5 to make Firebase Test the default, or adjust as needed
+  int _selectedIndex = 3; // Default to Inventory tab, as per your latest context
 
   // List of screens for bottom navigation
   final List<Widget> _screens = [
     const PlaceholderScreen(title: 'Vehicles'),
-    const PlaceholderScreen(title: 'Schedule'),
-    const PlaceholderScreen(title: 'CRM'),
+    const SchedulePage(),
+    const CustomerScreen(),
     const InventoryScreen(),
     const InvoiceScreen(),
-    const FirebaseTestPage(), // Added your Firebase Test Page here
   ];
 
   void _onItemTapped(int index) {
@@ -91,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.local_shipping, size: 24),
-            label: ' Vehicles',
+            label: 'Vehicles',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today, size: 24),
@@ -108,10 +111,6 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.description, size: 24),
             label: 'Invoices',
-          ),
-          BottomNavigationBarItem( // New item for Firebase Test Page
-            icon: Icon(Icons.cloud_upload, size: 24),
-            label: 'Firebase Test',
           ),
         ],
         onTap: _onItemTapped,
