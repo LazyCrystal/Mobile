@@ -1,81 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'inventory_detail.dart'; // Ensure this file exists with InventoryDetailScreen
+import 'inventory_detail.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
 
-  Future<void> _setpricedialog(BuildContext context) async {
-    final stockPriceController = TextEditingController();
-    final marketPriceController = TextEditingController();
+  @override
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          AlertDialog(
-            title: Text('Set Price'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: stockPriceController, // Corrected casing
-                    decoration: InputDecoration(
-                        labelText: 'Stock price per unit(RM)'),
-                    keyboardType: TextInputType.numberWithOptions(
-                        decimal: true), // Added for better input
-                  ),
-                  TextField(
-                    controller: marketPriceController, // Corrected casing
-                    decoration: InputDecoration(
-                        labelText: 'Market price per unit(RM)'),
-                    keyboardType: TextInputType.numberWithOptions(
-                        decimal: true), // Added for better input
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                // Fixed to close dialog
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () async { // async is needed for await
-                  if (stockPriceController.text.isEmpty ||
-                      marketPriceController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('All text fields must be filled.')),
-                    );
-                    return;
-                  }
-                  try {
-                    // This should be an update, not add (document ID needed)
-                    // Placeholder for update logic (see integration below)
-                    Navigator.pop(context); // Close dialog on success
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                },
-                child: Text('Add'),
-              ),
-            ],
-          ),
-    );
+class _InventoryScreenState extends State<InventoryScreen> {
+  // Declare all controllers as instance variables
+  final _searchController = TextEditingController();
+  final _partNumberController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _stockPriceController = TextEditingController();
+  final _marketPriceController = TextEditingController();
+  String _sortOption = 'none'; // Track sorting state
+
+  @override
+  void initState() {
+    super.initState();
+    // No initial data to load for these controllers, but _searchController is ready for use
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _partNumberController.dispose();
+    _nameController.dispose();
+    _quantityController.dispose();
+    _stockPriceController.dispose();
+    _marketPriceController.dispose();
+    super.dispose();
   }
 
   Future<void> _addItem(BuildContext context) async {
-    final partNumberController = TextEditingController();
-    final nameController = TextEditingController();
-    final quantityController = TextEditingController();
-    final imageUrlController = TextEditingController();
-    final stockPriceController = TextEditingController();
-    final marketPriceController = TextEditingController();
+    final List<String> assetImages = [
+      'assets/Tire.jpg',
+      'assets/Brake_Pad.jpg',
+      'assets/Oil_Filter.jpg',
+      'assets/Spark_Plug.jpg',
+      'assets/Battery.jpg',
+    ];
+    String? selectedImage = assetImages[0];
 
     showDialog(
       context: context,
@@ -86,21 +55,31 @@ class InventoryScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: partNumberController,
+                controller: _partNumberController,
                 decoration: InputDecoration(labelText: 'Part Number'),
               ),
               TextField(
-                controller: nameController,
+                controller: _nameController,
                 decoration: InputDecoration(labelText: 'Name'),
               ),
               TextField(
-                controller: quantityController,
+                controller: _quantityController,
                 decoration: InputDecoration(labelText: 'Quantity'),
                 keyboardType: TextInputType.number,
               ),
-              TextField(
-                controller: imageUrlController,
-                decoration: InputDecoration(labelText: 'Image URL'),
+              DropdownButtonFormField<String>(
+                initialValue: selectedImage,
+                decoration: InputDecoration(labelText: 'Select Image'),
+                items: assetImages.map((String assetPath) {
+                  return DropdownMenuItem<String>(
+                    value: assetPath,
+                    child: Text(assetPath.split('/').last),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  selectedImage = newValue;
+                  debugPrint('Selected image: $selectedImage');
+                },
               ),
             ],
           ),
@@ -112,26 +91,23 @@ class InventoryScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              if (partNumberController.text.isEmpty ||
-                  nameController.text.isEmpty ||
-                  quantityController.text.isEmpty ||
-                  imageUrlController.text.isEmpty) {
+              if (_partNumberController.text.isEmpty ||
+                  _nameController.text.isEmpty ||
+                  _quantityController.text.isEmpty ||
+                  selectedImage == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('All fields are required!')),
                 );
                 return;
               }
               try {
-                // Add initial item without prices
                 final docRef = await FirebaseFirestore.instance.collection('Inventory').add({
-                  'partNumber': partNumberController.text,
-                  'name': nameController.text,
-                  'quantity': int.parse(quantityController.text),
-                  'imageUrl': imageUrlController.text,
+                  'partNumber': _partNumberController.text,
+                  'name': _nameController.text,
+                  'quantity': int.parse(_quantityController.text),
+                  'imageUrl': selectedImage!,
                   'timestamp': FieldValue.serverTimestamp(),
                 });
-
-                // Show dialog for prices after successful addition
                 await showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -142,12 +118,12 @@ class InventoryScreen extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           TextField(
-                            controller: stockPriceController,
+                            controller: _stockPriceController,
                             decoration: InputDecoration(labelText: 'Stock price per unit(RM)'),
                             keyboardType: TextInputType.numberWithOptions(decimal: true),
                           ),
                           TextField(
-                            controller: marketPriceController,
+                            controller: _marketPriceController,
                             decoration: InputDecoration(labelText: 'Market price per unit(RM)'),
                             keyboardType: TextInputType.numberWithOptions(decimal: true),
                           ),
@@ -161,7 +137,8 @@ class InventoryScreen extends StatelessWidget {
                       ),
                       TextButton(
                         onPressed: () async {
-                          if (stockPriceController.text.isEmpty || marketPriceController.text.isEmpty) {
+                          if (_stockPriceController.text.isEmpty ||
+                              _marketPriceController.text.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('All text fields must be filled.')),
                             );
@@ -169,14 +146,20 @@ class InventoryScreen extends StatelessWidget {
                           }
                           try {
                             await docRef.update({
-                              'stockPrice': double.parse(stockPriceController.text),
-                              'marketPrice': double.parse(marketPriceController.text),
+                              'stockPrice': double.parse(_stockPriceController.text),
+                              'marketPrice': double.parse(_marketPriceController.text),
                             });
-                            Navigator.pop(context); // Close prices dialog
-                            Navigator.pop(context); // Close initial add dialog
+                            Navigator.pop(context);
+                            Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Prices added successfully!')),
+                              SnackBar(content: Text('Item added successfully!')),
                             );
+                            // Clear controllers after successful addition
+                            _partNumberController.clear();
+                            _nameController.clear();
+                            _quantityController.clear();
+                            _stockPriceController.clear();
+                            _marketPriceController.clear();
                           } catch (e) {
                             debugPrint('❌ Failed to update prices: $e');
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -203,6 +186,44 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _showSortOptions(BuildContext context) async {
+    String? sortOption = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Sort Items'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text('Low Quantity to High Quantity'),
+              onTap: () {
+                Navigator.pop(context, 'lowToHigh');
+              },
+            ),
+            ListTile(
+              title: Text('High Quantity to Low Quantity'),
+              onTap: () {
+                Navigator.pop(context, 'highToLow');
+              },
+            ),
+            ListTile(
+              title: Text('By Group (Txxx, BPxxx, OFxxx, SPxxx, BTxxx)'),
+              onTap: () {
+                Navigator.pop(context, 'byGroup');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (sortOption != null) {
+      setState(() {
+        _sortOption = sortOption;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -218,7 +239,11 @@ class InventoryScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
-            onPressed: () => _addItem(context), // Open dialog on button press
+            onPressed: () => _addItem(context),
+          ),
+          IconButton(
+            icon: Icon(Icons.sort, color: Colors.blueAccent, size: 20),
+            onPressed: () => _showSortOptions(context),
           ),
         ],
         centerTitle: true,
@@ -231,6 +256,7 @@ class InventoryScreen extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: TextField(
+              controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search by parts number',
                 hintStyle: TextStyle(color: Colors.blueAccent),
@@ -243,7 +269,9 @@ class InventoryScreen extends StatelessWidget {
                 ),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              onChanged: (value) {},
+              onChanged: (value) {
+                setState(() {});
+              },
             ),
           ),
           Padding(
@@ -258,10 +286,6 @@ class InventoryScreen extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.sort, color: Colors.blueAccent, size: 20),
-                  onPressed: () {},
                 ),
               ],
             ),
@@ -279,15 +303,46 @@ class InventoryScreen extends StatelessWidget {
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return Center(child: Text('No inventory items found.'));
                 }
-
                 final inventoryItems = snapshot.data!.docs;
+
+                // Filter by search term
+                final searchTerm = _searchController.text.toLowerCase();
+                var filteredItems = searchTerm.isEmpty
+                    ? inventoryItems
+                    : inventoryItems.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['partNumber']?.toLowerCase().contains(searchTerm) ?? false;
+                }).toList();
+
+                // Apply sorting based on _sortOption
+                filteredItems.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aQuantity = aData['quantity'] ?? 0;
+                  final bQuantity = bData['quantity'] ?? 0;
+                  final aPartNumber = aData['partNumber'] ?? '';
+                  final bPartNumber = bData['partNumber'] ?? '';
+
+                  switch (_sortOption) {
+                    case 'lowToHigh':
+                      return aQuantity.compareTo(bQuantity);
+                    case 'highToLow':
+                      return bQuantity.compareTo(aQuantity);
+                    case 'byGroup':
+                      final aPrefix = aPartNumber.isNotEmpty ? aPartNumber.substring(0, 2) : 'ZZ';
+                      final bPrefix = bPartNumber.isNotEmpty ? bPartNumber.substring(0, 2) : 'ZZ';
+                      return aPrefix.compareTo(bPrefix);
+                    default:
+                      return 0;
+                  }
+                });
 
                 return ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: inventoryItems.length,
+                  itemCount: filteredItems.length,
                   itemBuilder: (context, index) {
-                    final item = inventoryItems[index].data() as Map<String, dynamic>;
-                    final docId = inventoryItems[index].id; // Get document ID
+                    final item = filteredItems[index].data() as Map<String, dynamic>;
+                    final docId = filteredItems[index].id;
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -303,7 +358,7 @@ class InventoryScreen extends StatelessWidget {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
+                              child: Image.asset(
                                 item['imageUrl'] ?? 'https://via.placeholder.com/150',
                                 width: 56,
                                 height: 56,
@@ -312,6 +367,7 @@ class InventoryScreen extends StatelessWidget {
                                   width: 56,
                                   height: 56,
                                   color: Colors.grey,
+                                  child: Text('Error: $error'),
                                 ),
                               ),
                             ),

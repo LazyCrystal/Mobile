@@ -50,7 +50,7 @@ class InventoryDetailScreen extends StatelessWidget {
                   'stockPrice': double.parse(stockPriceController.text),
                   'marketPrice': double.parse(marketPriceController.text),
                 });
-                Navigator.pop(context); // Close the dialog on success
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Prices updated successfully!')),
                 );
@@ -62,6 +62,96 @@ class InventoryDetailScreen extends StatelessWidget {
               }
             },
             child: Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _increaseQuantity(BuildContext context) async {
+    final quantityController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Increase Quantity'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: quantityController,
+                decoration: InputDecoration(labelText: 'Quantity to Increase'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (quantityController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Quantity is required!')),
+                );
+                return;
+              }
+              try {
+                final currentQuantity = item['quantity'] ?? 0;
+                final increaseAmount = int.parse(quantityController.text);
+                await FirebaseFirestore.instance.collection('Inventory').doc(docId).update({
+                  'quantity': currentQuantity + increaseAmount,
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Quantity increased successfully!')),
+                );
+              } catch (e) {
+                debugPrint('❌ Failed to increase quantity: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+            child: Text('Increase'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteItem(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Delete'),
+        content: Text('Are you sure you want to delete this item?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance.collection('Inventory').doc(docId).delete();
+                Navigator.pop(context); // Close confirm dialog
+                Navigator.pop(context); // Return to previous screen
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Item deleted successfully!')),
+                );
+              } catch (e) {
+                debugPrint('❌ Failed to delete item: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+            child: Text('Delete'),
           ),
         ],
       ),
@@ -95,8 +185,8 @@ class InventoryDetailScreen extends StatelessWidget {
             Center(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  item['imageUrl'] ?? 'https://via.placeholder.com/150',
+                child: Image.asset(
+                  item['imageUrl'] ?? 'https://via.placeholder.com/150', // Use asset path
                   width: 200,
                   height: 200,
                   fit: BoxFit.cover,
@@ -104,6 +194,7 @@ class InventoryDetailScreen extends StatelessWidget {
                     width: 200,
                     height: 200,
                     color: Colors.grey,
+                    child: Text('Error: $error'), // Debug error
                   ),
                 ),
               ),
@@ -129,26 +220,30 @@ class InventoryDetailScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16, color: Colors.black),
             ),
             SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // TODO: Implement increase quantity functionality
-                  },
-                  child: Text('Increase Quantity'),
+            Expanded(
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => _increaseQuantity(context),
+                      child: Text('Increase Quantity'),
+                    ),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () => _deleteItem(context),
+                      child: Text('Delete'),
+                    ),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () => _updatePrices(context),
+                      child: Text('Update Prices'),
+                    ),
+                  ],
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    // TODO: Implement delete functionality
-                  },
-                  child: Text('Delete'),
-                ),
-                ElevatedButton(
-                  onPressed: () => _updatePrices(context),
-                  child: Text('Update Prices'),
-                ),
-              ],
+              ),
             ),
           ],
         ),
