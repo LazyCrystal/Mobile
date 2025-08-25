@@ -82,7 +82,7 @@ class HomePage extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const InventoryScreen()),
+                        MaterialPageRoute(builder: (context) =>InventoryScreen()),
                       );
                     },
                   ),

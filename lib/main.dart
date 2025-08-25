@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const PlaceholderScreen(title: 'Vehicles'),
     const SchedulePage(),
     const CustomerScreen(),
-    const InventoryScreen(),
+    InventoryScreen(),
     const InvoiceScreen(),
   ];
 

@@ -1,49 +1,213 @@
 import 'package:flutter/material.dart';
-
-//way to link to firebase
-//FirebaseFirestore.instance.collection('Invenrtory')
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'inventory_detail.dart'; // Ensure this file exists with InventoryDetailScreen
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
 
+  Future<void> _setpricedialog(BuildContext context) async {
+    final stockPriceController = TextEditingController();
+    final marketPriceController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          AlertDialog(
+            title: Text('Set Price'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: stockPriceController, // Corrected casing
+                    decoration: InputDecoration(
+                        labelText: 'Stock price per unit(RM)'),
+                    keyboardType: TextInputType.numberWithOptions(
+                        decimal: true), // Added for better input
+                  ),
+                  TextField(
+                    controller: marketPriceController, // Corrected casing
+                    decoration: InputDecoration(
+                        labelText: 'Market price per unit(RM)'),
+                    keyboardType: TextInputType.numberWithOptions(
+                        decimal: true), // Added for better input
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                // Fixed to close dialog
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async { // async is needed for await
+                  if (stockPriceController.text.isEmpty ||
+                      marketPriceController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('All text fields must be filled.')),
+                    );
+                    return;
+                  }
+                  try {
+                    // This should be an update, not add (document ID needed)
+                    // Placeholder for update logic (see integration below)
+                    Navigator.pop(context); // Close dialog on success
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                },
+                child: Text('Add'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _addItem(BuildContext context) async {
+    final partNumberController = TextEditingController();
+    final nameController = TextEditingController();
+    final quantityController = TextEditingController();
+    final imageUrlController = TextEditingController();
+    final stockPriceController = TextEditingController();
+    final marketPriceController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Add New Inventory'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: partNumberController,
+                decoration: InputDecoration(labelText: 'Part Number'),
+              ),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(labelText: 'Name'),
+              ),
+              TextField(
+                controller: quantityController,
+                decoration: InputDecoration(labelText: 'Quantity'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: imageUrlController,
+                decoration: InputDecoration(labelText: 'Image URL'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (partNumberController.text.isEmpty ||
+                  nameController.text.isEmpty ||
+                  quantityController.text.isEmpty ||
+                  imageUrlController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('All fields are required!')),
+                );
+                return;
+              }
+              try {
+                // Add initial item without prices
+                final docRef = await FirebaseFirestore.instance.collection('Inventory').add({
+                  'partNumber': partNumberController.text,
+                  'name': nameController.text,
+                  'quantity': int.parse(quantityController.text),
+                  'imageUrl': imageUrlController.text,
+                  'timestamp': FieldValue.serverTimestamp(),
+                });
+
+                // Show dialog for prices after successful addition
+                await showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => AlertDialog(
+                    title: Text('Set Price'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(
+                            controller: stockPriceController,
+                            decoration: InputDecoration(labelText: 'Stock price per unit(RM)'),
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          ),
+                          TextField(
+                            controller: marketPriceController,
+                            decoration: InputDecoration(labelText: 'Market price per unit(RM)'),
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          if (stockPriceController.text.isEmpty || marketPriceController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('All text fields must be filled.')),
+                            );
+                            return;
+                          }
+                          try {
+                            await docRef.update({
+                              'stockPrice': double.parse(stockPriceController.text),
+                              'marketPrice': double.parse(marketPriceController.text),
+                            });
+                            Navigator.pop(context); // Close prices dialog
+                            Navigator.pop(context); // Close initial add dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Prices added successfully!')),
+                            );
+                          } catch (e) {
+                            debugPrint('❌ Failed to update prices: $e');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        },
+                        child: Text('Add'),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                debugPrint('❌ Failed to add item: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+            child: Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> inventoryItems = [
-      {
-        'partNumber': 'Part #12345',
-        'name': 'Brake Pad Set',
-        'quantity': 10,
-        'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_U40D2uj2wJcyU34FtthgXcaKY8Fd2J_Jcmh5Ao9E528wYz1NzDXDX_KOfZ-CuQfPE5ZdQpLjvsH3PSGUk-dHcxOdgM_Lse3Tsy6zhrGHEACKhOjlcRKMJKNZJ0tLNM9cPOwyKQUQsTHMJJdb2FNnJDLKgrBKqhUiESQq74hDZzRy1NZrZs_xFxEBGsZeR0Y9-agH740Snuk3V-3oMIry7xtHYZqOtYv2YZtwlXg7yn3z_Z8Vh1n8Caok060GGYB9A18NGiVHWw0'
-      },
-      {
-        'partNumber': 'Part #67890',
-        'name': 'Oil Filter',
-        'quantity': 25,
-        'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCTV6kyh1HNb1P-KkrsrYDF_iJDyGNgFtNCwZiicLtS8fpPtA6SY7BZf4YhWZilnA1L8txIOd0b-JLDSngWOpEsHnfNpwMLSerb6-B9d4sObEb8CbmvMVY1TpsHKaQPCLYeQCbo7ClhyIHDcVI9BoXJUHj4KqdSBKQtS0JlCwMl4aDECrJ7Hx5SpoNSNWCNdNg7kAKqgIX9_ht457t53Fjo4jTTBr5xDGBFls7uzrZ1TBgKWzr_-c94jJYT-r1D4bRJ9MkjlWTiS_o'
-      },
-      {
-        'partNumber': 'Part #11223',
-        'name': 'Spark Plug',
-        'quantity': 50,
-        'imageUrl': 'https://www.e3sparkplugs.com/cdn/shop/articles/BlueOceanConsulting-322164-two-spark-plugs-blogbanner1.jpg?v=1725638401&width=1024'
-      },
-      {
-        'partNumber': 'Part #33445',
-        'name': 'Tire',
-        'quantity': 4,
-        'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAmlnzlwdmDo4-qsw2JiPyR5nPeXDaUIlWAXMVQMlxpv1xEVWIim3nJO61KLSD5gmG1B26QngWP4WovZQK5xLzOD3vubDAxF7CjehTsyre5zyva7S8ZkF_pkAhqaRsH0obX7_B6q0Vh3UDHv1bMsW4z70PgJTeIgAOg2F9XYrE3TYW_CKAmE7l8ypDvytcwJ53TCF1SxEWtbQWzKF8Iua_-2Hsv-kMPMQoYVV3G-5VhaLgMAjk9iIkNaM0huu7n_QWIZBkx8IZzaW8'
-      },
-      {
-        'partNumber': 'Part #55667',
-        'name': 'Headlight Bulb',
-        'quantity': 12,
-        'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZXvK4lJFzf0lN69synfvYWNlA9DJNBfwOq6qMB5bL4NmnYy05ygRNukcehHFDpmH8WLVMrZf62KEq20xpmCSEB15rT81zhyvd04Ea0gjAOfk6AHp1KpAro7taFYJoFLTN4Pnw3ypl6jJXvZZD0o81BLocfoX__PbZeWNY12DRFGdquSw-0tMonyEPY-G-tNoVRymjl-zMjaiGDOeG3nkTvJLKq3LlchiMyA6Mo5u046R47z9x4W_vp4tT4G4Ui5vlQsFxGPTeheI'
-      },
-    ];
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Inventory',
           style: TextStyle(
             color: Color(0xFF0D141C),
@@ -53,42 +217,41 @@ class InventoryScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
-            onPressed: () {
-              // TODO: Implement add item functionality
-            },
+            icon: Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
+            onPressed: () => _addItem(context), // Open dialog on button press
           ),
         ],
         centerTitle: true,
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Search parts',
-                hintStyle: const TextStyle(color: Color(0xFF49739C)),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF49739C)),
+                hintText: 'Search by parts number',
+                hintStyle: TextStyle(color: Colors.blueAccent),
+                prefixIcon: Icon(Icons.search, color: Colors.blueAccent),
                 filled: true,
-                fillColor: const Color(0xFFE7EDF4),
+                fillColor: Colors.white24,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
+              onChanged: (value) {},
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Parts',
                   style: TextStyle(
                     color: Color(0xFF0D141C),
@@ -97,73 +260,99 @@ class InventoryScreen extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.sort, color: Color(0xFF49739C), size: 20),
-                  onPressed: () {
-                    // TODO: Implement re-arrange functionality
-                  },
+                  icon: Icon(Icons.sort, color: Colors.blueAccent, size: 20),
+                  onPressed: () {},
                 ),
               ],
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: inventoryItems.length,
-              itemBuilder: (context, index) {
-                final item = inventoryItems[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          item['imageUrl'],
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 56,
-                            height: 56,
-                            color: Colors.grey[300],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('Inventory').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(child: Text('No inventory items found.'));
+                }
+
+                final inventoryItems = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: inventoryItems.length,
+                  itemBuilder: (context, index) {
+                    final item = inventoryItems[index].data() as Map<String, dynamic>;
+                    final docId = inventoryItems[index].id; // Get document ID
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => InventoryDetailScreen(item: item, docId: docId),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        );
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
                           children: [
-                            Text(
-                              item['partNumber'],
-                              style: const TextStyle(
-                                color: Color(0xFF0D141C),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                item['imageUrl'] ?? 'https://via.placeholder.com/150',
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 56,
+                                  height: 56,
+                                  color: Colors.grey,
+                                ),
                               ),
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['partNumber'] ?? 'N/A',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    item['name'] ?? 'Unknown',
+                                    style: TextStyle(
+                                      color: Colors.blueAccent,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                             Text(
-                              item['name'],
-                              style: const TextStyle(
-                                color: Color(0xFF49739C),
-                                fontSize: 14,
+                              item['quantity']?.toString() ?? '0',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                      Text(
-                        item['quantity'].toString(),
-                        style: const TextStyle(
-                          color: Color(0xFF0D141C),
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             ),
