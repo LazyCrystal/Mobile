@@ -38,11 +38,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Future<void> _addItem(BuildContext context) async {
     final List<String> assetImages = [
-      'assets/Tire.jpg',
-      'assets/Brake_Pad.jpg',
-      'assets/Oil_Filter.jpg',
-      'assets/Spark_Plug.jpg',
-      'assets/Battery.jpg',
+      'assets/images/Tire.jpg',
+      'assets/images/Brake_Pad.jpg',
+      'assets/images/Oil_Filter.jpg',
+      'assets/images/Spark_Plug.jpg',
+      'assets/images/Battery.jpg',
     ];
     String? selectedImage = assetImages[0];
 
