@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'inventory_detail.dart';
+import 'firebase_options.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -27,6 +28,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   void dispose() {
+    _searchController.clear();
+    _partNumberController.clear();
+    _nameController.clear();
+    _quantityController.clear();
+    _stockPriceController.clear();
+    _marketPriceController.clear();
     _searchController.dispose();
     _partNumberController.dispose();
     _nameController.dispose();
@@ -298,6 +305,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   return Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
+                  debugPrint('Firestore error: ${snapshot.error}');
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
