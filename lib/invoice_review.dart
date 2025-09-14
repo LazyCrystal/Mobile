@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'invoice_billing.dart'; // Import the new billing records screen
+import 'firebase_invoice_service.dart'; // Import Firebase service
 
 // Define a callback type for when an invoice is updated
 typedef OnInvoiceUpdated = void Function(Map<String, dynamic> updatedInvoice);
@@ -25,6 +26,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
   // within this screen (e.g., after approval/rejection or managing payments).
   late String _currentStatus;
   late List<dynamic> _currentPayments; // To manage payments locally
+  bool _isUpdating = false; // Loading state for updates
 
   @override
   void initState() {
@@ -83,13 +85,35 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
   }
 
   // Method to update invoice data from external calls (e.g., billing records screen)
-  void _updateInvoiceFromChild(Map<String, dynamic> updatedInvoice) {
+  Future<void> _updateInvoiceFromChild(Map<String, dynamic> updatedInvoice) async {
     setState(() {
-      _currentStatus = updatedInvoice['status'];
-      _currentPayments = List.from(updatedInvoice['payments'] ?? []);
+      _isUpdating = true;
     });
-    // Also propagate the update to the parent (InvoiceScreen)
-    widget.onInvoiceUpdated(updatedInvoice);
+
+    try {
+      // Update in Firebase
+      await FirebaseInvoiceService.updateInvoice(updatedInvoice['id'], updatedInvoice);
+
+      setState(() {
+        _currentStatus = updatedInvoice['status'];
+        _currentPayments = List.from(updatedInvoice['payments'] ?? []);
+      });
+
+      // Also propagate the update to the parent (InvoiceScreen)
+      widget.onInvoiceUpdated(updatedInvoice);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating invoice: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
+    }
   }
 
   // Dialog for approving invoice
@@ -114,19 +138,45 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Approve', style: TextStyle(color: Colors.white)),
-              onPressed: () {
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close dialog first
+
                 setState(() {
-                  _currentStatus = 'Unpaid'; // Approved means it's now awaiting payment
-                  // Clear payments on approval if it was previously rejected/draft
-                  _currentPayments = [];
-                  widget.invoiceData['status'] = _currentStatus;
-                  widget.invoiceData['payments'] = _currentPayments; // Update original data
-                  widget.onInvoiceUpdated(widget.invoiceData);
+                  _isUpdating = true;
                 });
-                Navigator.of(context).pop(); // Close dialog
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invoice approved successfully! Status: Unpaid')),
-                );
+
+                try {
+                  // Update status in Firebase
+                  await FirebaseInvoiceService.updateInvoiceStatus(widget.invoiceData['id'], 'Unpaid');
+
+                  setState(() {
+                    _currentStatus = 'Unpaid'; // Approved means it's now awaiting payment
+                    // Clear payments on approval if it was previously rejected/draft
+                    _currentPayments = [];
+                    widget.invoiceData['status'] = _currentStatus;
+                    widget.invoiceData['payments'] = _currentPayments; // Update original data
+                  });
+
+                  widget.onInvoiceUpdated(widget.invoiceData);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invoice approved successfully! Status: Unpaid')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error approving invoice: $e')),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      _isUpdating = false;
+                    });
+                  }
+                }
               },
             ),
           ],
@@ -169,24 +219,51 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Reject', style: TextStyle(color: Colors.white)),
-              onPressed: () {
+              onPressed: () async {
                 if (rejectReason.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please provide a reason for rejection.')),
                   );
                   return;
                 }
+
+                Navigator.of(context).pop(); // Close dialog first
+
                 setState(() {
-                  _currentStatus = 'Rejected';
-                  _currentPayments = []; // Clear payments on rejection
-                  widget.invoiceData['status'] = _currentStatus;
-                  widget.invoiceData['payments'] = _currentPayments; // Update original data
-                  widget.onInvoiceUpdated(widget.invoiceData);
+                  _isUpdating = true;
                 });
-                Navigator.of(context).pop(); // Close dialog
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Invoice rejected. Reason: $rejectReason')),
-                );
+
+                try {
+                  // Update status in Firebase
+                  await FirebaseInvoiceService.updateInvoiceStatus(widget.invoiceData['id'], 'Rejected');
+
+                  setState(() {
+                    _currentStatus = 'Rejected';
+                    _currentPayments = []; // Clear payments on rejection
+                    widget.invoiceData['status'] = _currentStatus;
+                    widget.invoiceData['payments'] = _currentPayments; // Update original data
+                  });
+
+                  widget.onInvoiceUpdated(widget.invoiceData);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Invoice rejected. Reason: $rejectReason')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error rejecting invoice: $e')),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      _isUpdating = false;
+                    });
+                  }
+                }
               },
             ),
           ],
@@ -204,7 +281,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
         backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         title: Text(
-          'Invoice ${widget.invoiceData['id']}',
+          'Invoice ${widget.invoiceData['invoiceId'] ?? widget.invoiceData['id'] ?? 'N/A'}',
           style: const TextStyle(color: Color(0xFF0D141C)),
         ),
         centerTitle: true,
@@ -220,7 +297,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
           children: [
             // Invoice Summary
             _buildSectionTitle('Invoice Summary'),
-            _buildInfoRow('Invoice ID:', widget.invoiceData['id']),
+            _buildInfoRow('Invoice ID:', widget.invoiceData['invoiceId'] ?? widget.invoiceData['id']),
             _buildInfoRow('Status:', displayStatus), // Use displayStatus
             _buildInfoRow('Issue Date:', widget.invoiceData['issueDate']),
             _buildInfoRow('Due Date:', widget.invoiceData['dueDate']),
@@ -360,153 +437,191 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
 
   // Helper to build action buttons
   Widget _buildActionButtons(BuildContext context) {
-    // Determine if Approve button is enabled
+    // Determine if Approve button should be shown
     final bool canApprove = _currentStatus == 'Draft' || _currentStatus == 'Rejected';
-    final VoidCallback? approveOnPressed = canApprove ? () => _showApproveDialog(context) : null;
-    final Color approveBgColor = canApprove ? const Color(0xFF3D98F4) : Colors.grey.shade400;
-    final Color approveTextColor = canApprove ? Colors.white : Colors.grey.shade600;
-    final String approveNote = canApprove ? '' : 'Invoice must be in Draft or Rejected status to be approved.';
 
-    // Determine if Reject button is enabled
+    // Determine if Reject button should be shown
     final bool canReject = _currentStatus == 'Draft' || _currentStatus == 'Unpaid' || _currentStatus == 'Partially Paid';
-    final VoidCallback? rejectOnPressed = canReject ? () => _showRejectDialog(context) : null;
-    final Color rejectFgColor = canReject ? const Color(0xFFD92D20) : Colors.grey.shade600;
-    final Color rejectBorderColor = canReject ? const Color(0xFFD92D20) : Colors.grey.shade400;
-    final String rejectNote = canReject ? '' : 'Invoice cannot be rejected in its current status.';
 
-    // Determine if Manage Payments button is enabled
+    // Determine if Manage Payments button should be shown
     final bool canManagePayments = _currentStatus != 'Draft' && _currentStatus != 'Rejected';
-    final VoidCallback? managePaymentsOnPressed = canManagePayments ? () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => InvoiceBillingScreen(
-            invoiceData: widget.invoiceData,
-            onInvoiceUpdated: _updateInvoiceFromChild,
+
+    List<Widget> buttons = [];
+
+    // Add Approve Invoice Button only if applicable
+    if (canApprove) {
+      buttons.add(
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isUpdating ? null : () => _showApproveDialog(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isUpdating ? Colors.grey.shade400 : const Color(0xFF3D98F4),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isUpdating
+                ? const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Updating...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            )
+                : const Text(
+              'Approve Invoice',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ),
       );
-    } : null;
-    final Color managePaymentsFgColor = canManagePayments ? const Color(0xFF49739C) : Colors.grey.shade600;
-    final String managePaymentsNote = canManagePayments
-        ? ''
-        : 'Approve invoice first to manage payments.';
+      buttons.add(const SizedBox(height: 12));
+    }
 
-
-    return Column(
-      children: [
-        // Approve Invoice Button
+    // Add Reject Invoice Button only if applicable
+    if (canReject) {
+      buttons.add(
         SizedBox(
           width: double.infinity,
-          child: Tooltip( // Added Tooltip for notes
-            message: approveNote,
-            preferBelow: false,
-            triggerMode: approveNote.isNotEmpty ? TooltipTriggerMode.longPress : TooltipTriggerMode.manual,
-            child: ElevatedButton(
-              onPressed: approveOnPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: approveBgColor, // Direct Color assignment
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                // Removed elevation, shadowColor, overlayColor
+          child: OutlinedButton(
+            onPressed: _isUpdating ? null : () => _showRejectDialog(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _isUpdating ? Colors.grey.shade600 : const Color(0xFFD92D20),
+              side: BorderSide(color: _isUpdating ? Colors.grey.shade400 : const Color(0xFFD92D20)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                'Approve Invoice',
-                style: TextStyle(
-                  color: approveTextColor, // Direct Color assignment
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+            ),
+            child: _isUpdating
+                ? const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                  ),
                 ),
+                SizedBox(width: 8),
+                Text(
+                  'Updating...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            )
+                : const Text(
+              'Reject Invoice',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
         ),
-        if (approveNote.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-            child: Text(
-              approveNote,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12), // Simple gray note
-              textAlign: TextAlign.center,
-            ),
-          ),
-        const SizedBox(height: 12),
+      );
+      buttons.add(const SizedBox(height: 12));
+    }
 
-        // Reject Invoice Button
+    // Add Manage Payments Button only if applicable
+    if (canManagePayments) {
+      buttons.add(
         SizedBox(
           width: double.infinity,
-          child: Tooltip( // Added Tooltip for notes
-            message: rejectNote,
-            preferBelow: false,
-            triggerMode: rejectNote.isNotEmpty ? TooltipTriggerMode.longPress : TooltipTriggerMode.manual,
-            child: OutlinedButton(
-              onPressed: rejectOnPressed,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: rejectFgColor, // Direct Color assignment
-                side: BorderSide(color: rejectBorderColor), // Direct BorderSide assignment
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+          child: TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => InvoiceBillingScreen(
+                    invoiceData: widget.invoiceData,
+                    onInvoiceUpdated: _updateInvoiceFromChild,
+                  ),
                 ),
-                // Removed overlayColor
-              ),
-              child: const Text(
-                'Reject Invoice',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF49739C),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text(
+              'Manage Payments',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
         ),
-        if (rejectNote.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-            child: Text(
-              rejectNote,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12), // Simple gray note
-              textAlign: TextAlign.center,
-            ),
-          ),
-        const SizedBox(height: 12),
+      );
+    }
 
-        // Manage Payments Button
-        SizedBox(
-          width: double.infinity,
-          child: Tooltip( // Added Tooltip for notes
-            message: managePaymentsNote,
-            preferBelow: false,
-            triggerMode: managePaymentsNote.isNotEmpty ? TooltipTriggerMode.longPress : TooltipTriggerMode.manual,
-            child: TextButton(
-              onPressed: managePaymentsOnPressed,
-              style: TextButton.styleFrom(
-                foregroundColor: managePaymentsFgColor, // Direct Color assignment
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                // Removed overlayColor, textStyle
-              ),
-              child: const Text(
-                'Manage Payments',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
+    // If no buttons are applicable, show a status message
+    if (buttons.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
         ),
-        if (managePaymentsNote.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-            child: Text(
-              managePaymentsNote,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12), // Simple gray note
+        child: Column(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Colors.grey.shade600,
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No actions available for this invoice status',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
               textAlign: TextAlign.center,
             ),
-          ),
-      ],
-    );
+            const SizedBox(height: 4),
+            Text(
+              'Current status: $_currentStatus',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(children: buttons);
   }
 }

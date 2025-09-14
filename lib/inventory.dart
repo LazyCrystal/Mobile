@@ -75,7 +75,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 keyboardType: TextInputType.number,
               ),
               DropdownButtonFormField<String>(
-                initialValue: selectedImage,
+                value: selectedImage,
                 decoration: InputDecoration(labelText: 'Select Image'),
                 items: assetImages.map((String assetPath) {
                   return DropdownMenuItem<String>(
