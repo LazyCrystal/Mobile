@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobileassignment1/db.dart'; // 修改为你的 DBHelper 路径
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EditVehiclePage extends StatefulWidget {
   final Map<String, dynamic> vehicle;
@@ -46,16 +46,18 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       'notes': notesController.text,
     };
 
-    final db = await DBHelper.instance.database;
+    try {
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(widget.vehicle['docId'])
+          .update(updatedVehicle);
 
-    await db.update(
-      'vehicles',
-      updatedVehicle,
-      where: 'id = ?',
-      whereArgs: [widget.vehicle['id']],
-    );
-
-    Navigator.pop(context, true); // 返回并刷新
+      Navigator.pop(context, 'edited'); // ✅ 返回 edited
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update: $e')),
+      );
+    }
   }
 
   Future<void> _confirmDelete() async {
@@ -78,13 +80,18 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     );
 
     if (confirm == true) {
-      final db = await DBHelper.instance.database;
-      await db.delete(
-        'vehicles',
-        where: 'id = ?',
-        whereArgs: [widget.vehicle['id']],
-      );
-      Navigator.pop(context, true);
+      try {
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(widget.vehicle['docId'])
+            .delete();
+
+        Navigator.pop(context, 'deleted'); // ✅ 返回 deleted
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete vehicle: $e')),
+        );
+      }
     }
   }
 
@@ -135,3 +142,5 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     );
   }
 }
+
+

@@ -1,109 +1,94 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DBHelper {
   static final DBHelper instance = DBHelper._init();
-  static Database? _database;
-
   DBHelper._init();
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB('app.db');
-    return _database!;
-  }
+  // Firestore 集合：users
+  final CollectionReference usersCollection =
+  FirebaseFirestore.instance.collection('users');
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
-
-    return await openDatabase(
-      path,
-      version: 2,
-      onCreate: _createDB,
-    );
-  }
-
-  Future _createDB(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        password TEXT NOT NULL
-      )
-    ''');
-
-    await db.insert('users', {
-      'username': 'admin',
-      'password': '1234',
-    });
-
-    await db.execute('''
-    CREATE TABLE vehicles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      make TEXT,
-      model TEXT,
-      year INTEGER,
-      vin TEXT,
-      notes TEXT
-    )
-  ''');
-
-  }
-
+  /// 登录验证
   Future<bool> login(String username, String password) async {
-    final db = await instance.database;
+    try {
+      final snapshot = await usersCollection
+          .where('username', isEqualTo: username)
+          .where('password', isEqualTo: password)
+          .get();
 
-    final result = await db.query(
-      'users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [username, password],
-    );
-
-    return result.isNotEmpty;
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      print("Login error: $e");
+      return false;
+    }
   }
 
+  /// 添加用户
   Future<bool> addUser(String username, String password) async {
-    final db = await instance.database;
-
     try {
+      final existing =
+      await usersCollection.where('username', isEqualTo: username).get();
 
-      final res = await db.query(
-        'users',
-        where: 'username = ?',
-        whereArgs: [username],
-      );
+      if (existing.docs.isNotEmpty) {
+        // 用户名已存在
+        return false;
+      }
 
-      if (res.isNotEmpty) return false;
-
-      await db.insert('users', {
+      await usersCollection.add({
         'username': username,
         'password': password,
       });
       return true;
     } catch (e) {
+      print("Add user error: $e");
       return false;
     }
   }
 
+  /// 获取所有用户
   Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final db = await database;
-    return await db.query('users');
+    try {
+      final snapshot = await usersCollection.get();
+      return snapshot.docs
+          .map((doc) => {
+        'id': doc.id,
+        ...doc.data() as Map<String, dynamic>
+      })
+          .toList();
+    } catch (e) {
+      print("Get users error: $e");
+      return [];
+    }
   }
 
+  /// 删除用户
   Future<void> deleteUser(String username) async {
-    final db = await database;
-    await db.delete('users', where: 'username = ?', whereArgs: [username]);
+    try {
+      final snapshot =
+      await usersCollection.where('username', isEqualTo: username).get();
+
+      for (var doc in snapshot.docs) {
+        await usersCollection.doc(doc.id).delete();
+      }
+    } catch (e) {
+      print("Delete user error: $e");
+    }
   }
 
-  Future<void> updateUserPassword(String username, String newPassword) async {
-    final db = await database;
-    await db.update(
-      'users',
-      {'password': newPassword},
-      where: 'username = ?',
-      whereArgs: [username],
-    );
-  }
+  /// 修改密码
+  Future<void> updateUserPassword(
+      String username, String newPassword) async {
+    try {
+      final snapshot =
+      await usersCollection.where('username', isEqualTo: username).get();
 
+      for (var doc in snapshot.docs) {
+        await usersCollection.doc(doc.id).update({'password': newPassword});
+      }
+    } catch (e) {
+      print("Update password error: $e");
+    }
+  }
 }
+
+

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'db.dart';
 import 'editvehicle.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class VehiclePage extends StatefulWidget {
   const VehiclePage({super.key});
 
   @override
   State<VehiclePage> createState() => _VehiclePageState();
-
 }
 
 class _VehiclePageState extends State<VehiclePage> {
@@ -23,10 +22,30 @@ class _VehiclePageState extends State<VehiclePage> {
   }
 
   Future<void> _loadVehicles() async {
-    final db = await DBHelper.instance.database;
-    final result = await db.query('vehicles');
+    final snapshot =
+    await FirebaseFirestore.instance.collection('vehicles').get();
+
+    final data = snapshot.docs.map((doc) {
+      final vehicle = doc.data();
+      vehicle['docId'] = doc.id;
+
+      // ✅ 统一 year 为 string，避免类型冲突
+      final year = vehicle['year'];
+      if (year == null) {
+        vehicle['year'] = '';
+      } else if (year is int) {
+        vehicle['year'] = year.toString();
+      } else if (year is String) {
+        vehicle['year'] = year;
+      } else {
+        vehicle['year'] = '';
+      }
+
+      return vehicle;
+    }).toList();
+
     setState(() {
-      vehicles = result;
+      vehicles = data;
     });
   }
 
@@ -35,18 +54,28 @@ class _VehiclePageState extends State<VehiclePage> {
     final filteredVehicles = vehicles.where((vehicle) {
       final query = _searchQuery.toLowerCase();
 
-      final matchSearch = vehicle['make'].toLowerCase().contains(query) ||
-          vehicle['model'].toLowerCase().contains(query) ||
-          vehicle['vin'].toLowerCase().contains(query);
+      final matchSearch = (vehicle['make'] ?? '')
+          .toString()
+          .toLowerCase()
+          .contains(query) ||
+          (vehicle['model'] ?? '')
+              .toString()
+              .toLowerCase()
+              .contains(query) ||
+          (vehicle['vin'] ?? '')
+              .toString()
+              .toLowerCase()
+              .contains(query);
 
-      final matchYear = _selectedYear == 'All' ||
-          vehicle['year'].toString() == _selectedYear;
+      final matchYear =
+          _selectedYear == 'All' || vehicle['year'].toString() == _selectedYear;
 
       return matchSearch && matchYear;
     }).toList();
 
     final allYears = vehicles
         .map((v) => v['year'].toString())
+        .where((y) => y.isNotEmpty)
         .toSet()
         .toList()
       ..sort((a, b) => b.compareTo(a));
@@ -55,6 +84,7 @@ class _VehiclePageState extends State<VehiclePage> {
       appBar: AppBar(title: const Text('Vehicle Details')),
       body: Column(
         children: [
+          // 🔍 搜索栏
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -71,6 +101,7 @@ class _VehiclePageState extends State<VehiclePage> {
             ),
           ),
 
+          // 🔽 年份筛选
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Row(
@@ -95,7 +126,7 @@ class _VehiclePageState extends State<VehiclePage> {
                     },
                   ),
                 ),
-                const SizedBox(width: 8), // 间距
+                const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -103,12 +134,16 @@ class _VehiclePageState extends State<VehiclePage> {
                       _searchQuery = '';
                     });
                   },
-                  child: const Text('Clear', style: TextStyle(color: Colors.blue)),
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(color: Colors.blue),
+                  ),
                 ),
               ],
             ),
           ),
 
+          // 📋 车辆列表
           Expanded(
             child: ListView.builder(
               itemCount: filteredVehicles.length,
@@ -116,9 +151,11 @@ class _VehiclePageState extends State<VehiclePage> {
                 final vehicle = filteredVehicles[index];
                 return Card(
                   child: ListTile(
-                    title: Text('${vehicle['make']} ${vehicle['model']}'),
-                    subtitle: Text('Year: ${vehicle['year']}  •  VIN: ${vehicle['vin']}'),
-                    trailing: Icon(Icons.directions_car),
+                    title: Text(
+                        '${vehicle['make'] ?? ''} ${vehicle['model'] ?? ''}'),
+                    subtitle: Text(
+                        'Year: ${vehicle['year'] ?? ''}  •  VIN: ${vehicle['vin'] ?? ''}'),
+                    trailing: const Icon(Icons.directions_car),
                     onTap: () async {
                       final result = await Navigator.push(
                         context,
@@ -127,8 +164,14 @@ class _VehiclePageState extends State<VehiclePage> {
                         ),
                       );
 
-                      if (result == true) {
-                        _loadVehicles();
+                      if (result == 'edited' || result == 'deleted') {
+                        await _loadVehicles();
+                        final msg = result == 'edited'
+                            ? 'Vehicle updated successfully!'
+                            : 'Vehicle deleted successfully!';
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(msg)),
+                        );
                       }
                     },
                   ),
@@ -145,8 +188,11 @@ class _VehiclePageState extends State<VehiclePage> {
             MaterialPageRoute(builder: (_) => const AddVehiclePage()),
           );
 
-          if (result == true) {
-            _loadVehicles();
+          if (result == 'added') {
+            await _loadVehicles();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Vehicle added successfully!')),
+            );
           }
         },
         child: const Icon(Icons.add),
@@ -170,9 +216,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final TextEditingController notesController = TextEditingController();
 
   Future<void> _saveVehicle() async {
-
-    print('Save button pressed.');
-
     final make = makeController.text;
     final model = modelController.text;
     final year = int.tryParse(yearController.text) ?? 0;
@@ -186,9 +229,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       return;
     }
 
-    final db = await DBHelper.instance.database;
-
-    await db.insert('vehicles', {
+    await FirebaseFirestore.instance.collection('vehicles').add({
       'make': make,
       'model': model,
       'year': year,
@@ -196,7 +237,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       'notes': notes,
     });
 
-    Navigator.pop(context, true);
+    Navigator.pop(context, 'added');
   }
 
   @override
@@ -240,6 +281,11 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     );
   }
 }
+
+
+
+
+
 
 
 

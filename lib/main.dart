@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'db.dart';
 import 'home_page.dart';
 import 'home_pageadmin.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -13,7 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login Demo',
+      title: 'Login Page',
       home: const LoginPage(),
     );
   }
@@ -33,8 +39,8 @@ class _LoginPageState extends State<LoginPage> {
   String errorText = '';
 
   void _login() async {
-    String username = _usernameController.text;
-    String password = _passwordController.text;
+    String username = _usernameController.text.trim();
+    String password = _passwordController.text.trim();
 
     bool success = await DBHelper.instance.login(username, password);
 
@@ -55,12 +61,6 @@ class _LoginPageState extends State<LoginPage> {
         errorText = 'Invalid username or password.';
       });
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    DBHelper.instance.database;
   }
 
   @override
@@ -90,5 +90,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
 
 
