@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'inventory_detail.dart';
 import 'firebase_options.dart';
+import 'base_scaffold.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -233,30 +234,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Inventory',
-          style: TextStyle(
-            color: Color(0xFF0D141C),
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+    return BaseScaffold(
+      title: 'Inventory',
+      currentIndex: 4,
+      actions: [
+        IconButton(
+          icon: Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
+          onPressed: () => _addItem(context),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
-            onPressed: () => _addItem(context),
-          ),
-          IconButton(
-            icon: Icon(Icons.sort, color: Colors.blueAccent, size: 20),
-            onPressed: () => _showSortOptions(context),
-          ),
-        ],
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
+        IconButton(
+          icon: Icon(Icons.sort, color: Colors.blueAccent, size: 20),
+          onPressed: () => _showSortOptions(context),
+        ),
+      ],
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
