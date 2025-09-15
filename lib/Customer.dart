@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'base_scaffold.dart';
 
 
 
@@ -141,29 +142,18 @@ class _CustomerScreenState extends State<CustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
-        elevation: 0,
-        title: const Text(
-          'Customers',
-          style: TextStyle(
-            color: Color(0xFF0D141C),
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+    return BaseScaffold(
+      title: 'Customers',
+      currentIndex: 1,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
+          onPressed: () {
+            print('Add button pressed');
+            _addCustomer();
+          },
         ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Color(0xFF0D141C), size: 24),
-            onPressed: () {
-              print('Add button pressed');
-              _addCustomer();
-            },
-          ),
-        ],
-      ),
+      ],
       body: Column(
         children: [
           Padding(

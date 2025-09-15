@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Import for DateFormat to check overdue status
 import 'invoice_review.dart'; // Import the invoice review screen
 import 'invoice_generate.dart'; // Import the generate invoice screen
+import 'firebase_invoice_service.dart'; // Import Firebase service
+import 'base_scaffold.dart';
 
 class InvoiceScreen extends StatefulWidget {
   const InvoiceScreen({super.key});
@@ -11,98 +13,59 @@ class InvoiceScreen extends StatefulWidget {
 }
 
 class _InvoiceScreenState extends State<InvoiceScreen> {
-  int _selectedTabIndex = 0; // 0: All, 1: Unpaid, 2: Paid
-
-  final List<Map<String, dynamic>> _allInvoices = [
-    {
-      'id': '#12345',
-      'customerName': 'Sarah Miller',
-      'customerAddress': '123 Main St, Anytown, USA',
-      'customerEmail': 'sarah.m@example.com',
-      'amount': '\$500.00',
-      'issueDate': '2024-07-01',
-      'dueDate': '2024-07-31',
-      'status': 'Unpaid', // Approved, awaiting payment
-      'subtotal': '\$450.00',
-      'taxes': '\$50.00',
-      'discount': '\$0.00',
-      'totalAmount': '\$500.00',
-      'notes': 'Payment due by end of month.',
-      'lineItems': [
-        {'itemName': 'Product A', 'quantity': '2', 'unitPrice': '\$100.00', 'totalPrice': '\$200.00'},
-        {'itemName': 'Service B', 'quantity': '1', 'unitPrice': '\$250.00', 'totalPrice': '\$250.00'},
-      ],
-      'payments': [], // Changed from 'paidAmount' to 'payments' list
-    },
-    {
-      'id': '#12346',
-      'customerName': 'David Lee',
-      'customerAddress': '456 Oak Ave, Villagetown, USA',
-      'customerEmail': 'david.l@example.com',
-      'amount': '\$750.00',
-      'issueDate': '2024-06-15',
-      'dueDate': '2024-07-15',
-      'status': 'Paid', // This will be derived from payments
-      'subtotal': '\$700.00',
-      'taxes': '\$50.00',
-      'discount': '\$0.00',
-      'totalAmount': '\$750.00',
-      'notes': 'Thank you for your business!',
-      'lineItems': [
-        {'itemName': 'Consulting Hours', 'quantity': '5', 'unitPrice': '\$150.00', 'totalPrice': '\$750.00'},
-      ],
-      'payments': [ // Example of multiple payments
-        {'date': '2024-07-10', 'amount': '500.00'},
-        {'date': '2024-07-14', 'amount': '250.00'},
-      ],
-    },
-    {
-      'id': '#12347',
-      'customerName': 'Emily Chen',
-      'customerAddress': '789 Pine Ln, Cityville, USA',
-      'customerEmail': 'emily.c@example.com',
-      'amount': '\$300.00',
-      'issueDate': '2024-07-10',
-      'dueDate': '2024-08-10',
-      'status': 'Draft', // Needs internal approval
-      'subtotal': '\$280.00',
-      'taxes': '\$20.00',
-      'discount': '\$0.00',
-      'totalAmount': '\$300.00',
-      'notes': '',
-      'lineItems': [
-        {'itemName': 'Web Design', 'quantity': '1', 'unitPrice': '\$300.00', 'totalPrice': '\$300.00'},
-      ],
-      'payments': [],
-    },
-    {
-      'id': '#12348',
-      'customerName': 'Michael Brown',
-      'customerAddress': '101 Elm St, Townsville, USA',
-      'customerEmail': 'michael.b@example.com',
-      'amount': '\$1200.00',
-      'issueDate': '2024-07-05',
-      'dueDate': '2024-08-05',
-      'status': 'Rejected', // Was rejected, needs correction/re-approval
-      'subtotal': '\$1100.00',
-      'taxes': '\$100.00',
-      'discount': '\$0.00',
-      'totalAmount': '\$1200.00',
-      'notes': 'Requires client approval before sending.',
-      'lineItems': [
-        {'itemName': 'Software License', 'quantity': '1', 'unitPrice': '\$1000.00', 'totalPrice': '\$1000.00'},
-        {'itemName': 'Support Package', 'quantity': '1', 'unitPrice': '\$200.00', 'totalPrice': '\$200.00'},
-      ],
-      'payments': [],
-    },
-  ];
-
+  String _selectedStatus = 'All'; // Track selected status filter
+  List<Map<String, dynamic>> _allInvoices = [];
   List<Map<String, dynamic>> _filteredInvoices = [];
+  bool _isLoading = true;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  // Define all possible invoice statuses
+  final List<String> _allStatuses = [
+    'All',
+    'Paid',
+    'Unpaid',
+    'Partially Paid',
+    'Overdue',
+    'Draft',
+    'Rejected'
+  ];
 
   @override
   void initState() {
     super.initState();
-    _filterInvoices();
+    _loadInvoices();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Load invoices from Firebase
+  Future<void> _loadInvoices() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final invoices = await FirebaseInvoiceService.getAllInvoices();
+      setState(() {
+        _allInvoices = invoices;
+        _isLoading = false;
+      });
+      _filterInvoices();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading invoices: $e')),
+        );
+      }
+    }
   }
 
   // Helper to calculate total paid amount from payments list
@@ -154,102 +117,99 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
 
   void _filterInvoices() {
     setState(() {
-      if (_selectedTabIndex == 0) { // All
-        _filteredInvoices = List.from(_allInvoices);
-      } else if (_selectedTabIndex == 1) { // Unpaid (includes Draft, Rejected, Unpaid, Partially Paid, Overdue)
-        _filteredInvoices = _allInvoices.where((invoice) {
-          final status = _getInvoiceStatus(invoice);
-          return status != 'Paid';
+      List<Map<String, dynamic>> filtered = List.from(_allInvoices);
+
+      // Apply search filter
+      if (_searchQuery.isNotEmpty) {
+        filtered = filtered.where((invoice) {
+          final customerName = invoice['customerName']?.toString().toLowerCase() ?? '';
+          final invoiceId = invoice['id']?.toString().toLowerCase() ?? '';
+          final searchLower = _searchQuery.toLowerCase();
+          return customerName.contains(searchLower) || invoiceId.contains(searchLower);
         }).toList();
-      } else if (_selectedTabIndex == 2) { // Paid
-        _filteredInvoices = _allInvoices.where((invoice) {
+      }
+
+      // Apply status filter
+      if (_selectedStatus == 'All') {
+        _filteredInvoices = filtered;
+      } else {
+        _filteredInvoices = filtered.where((invoice) {
           final status = _getInvoiceStatus(invoice);
-          return status == 'Paid';
+          return status == _selectedStatus;
         }).toList();
       }
     });
   }
 
-  void _addNewInvoice(Map<String, dynamic> newInvoice) {
-    setState(() {
-      newInvoice['payments'] = []; // New invoices start with no payments
-      newInvoice['status'] = 'Draft'; // New invoices start as Draft
-      _allInvoices.add(newInvoice);
-      _filterInvoices();
-    });
+  // Helper method to get count of invoices for each status
+  int _getStatusCount(String status) {
+    if (status == 'All') {
+      return _allInvoices.length;
+    }
+    return _allInvoices.where((invoice) {
+      final invoiceStatus = _getInvoiceStatus(invoice);
+      return invoiceStatus == status;
+    }).length;
   }
 
-  void _updateInvoice(Map<String, dynamic> updatedInvoice) {
-    setState(() {
-      final index = _allInvoices.indexWhere((invoice) => invoice['id'] == updatedInvoice['id']);
-      if (index != -1) {
-        _allInvoices[index] = updatedInvoice;
-      }
+  Future<void> _addNewInvoice(Map<String, dynamic> newInvoice) async {
+    try {
+      // Add to Firebase
+      final invoiceId = await FirebaseInvoiceService.createInvoice(newInvoice);
+      newInvoice['id'] = invoiceId;
+
+      setState(() {
+        _allInvoices.insert(0, newInvoice); // Add to beginning of list
+      });
       _filterInvoices();
-    });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invoice created successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating invoice: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateInvoice(Map<String, dynamic> updatedInvoice) async {
+    try {
+      // Update in Firebase
+      await FirebaseInvoiceService.updateInvoice(updatedInvoice['id'], updatedInvoice);
+
+      setState(() {
+        final index = _allInvoices.indexWhere((invoice) => invoice['id'] == updatedInvoice['id']);
+        if (index != -1) {
+          _allInvoices[index] = updatedInvoice;
+        }
+      });
+      _filterInvoices();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invoice updated successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating invoice: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
-        elevation: 0,
-        title: const Text(
-          'Invoices',
-          style: TextStyle(color: Color(0xFF0D141C)),
-        ),
-        centerTitle: true,
-        actions: const [],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Color(0xFF49739C),
-                  size: 24,
-                ),
-                hintText: 'Search invoices',
-                hintStyle: const TextStyle(color: Color(0xFF49739C)),
-                filled: true,
-                fillColor: const Color(0xFFE7EDF4),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                const SizedBox(width: 16),
-                _buildTab(context, 'All', 0),
-                const SizedBox(width: 32),
-                _buildTab(context, 'Unpaid', 1),
-                const SizedBox(width: 32),
-                _buildTab(context, 'Paid', 2),
-              ],
-            ),
-          ),
-          const Divider(color: Color(0xFFCEDBE8), height: 1),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _filteredInvoices.length,
-              itemBuilder: (context, index) {
-                final invoice = _filteredInvoices[index];
-                return _buildInvoiceItem(invoice);
-              },
-            ),
-          ),
-        ],
-      ),
+    return BaseScaffold(
+      title: 'Invoices',
+      currentIndex: 2,
+      onRefresh: _loadInvoices,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -268,38 +228,233 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
-
-  Widget _buildTab(BuildContext context, String title, int index) {
-    bool isSelected = _selectedTabIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedTabIndex = index;
-          _filterInvoices();
-        });
-      },
-      child: Column(
+      body: Column(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFF0D141C) : const Color(0xFF49739C),
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.015,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+                _filterInvoices();
+              },
+              decoration: InputDecoration(
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF49739C),
+                  size: 24,
+                ),
+                hintText: 'Search invoices',
+                hintStyle: const TextStyle(color: Color(0xFF49739C)),
+                filled: true,
+                fillColor: const Color(0xFFE7EDF4),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear, color: Color(0xFF49739C)),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                    _filterInvoices();
+                  },
+                )
+                    : null,
+              ),
             ),
           ),
-          Container(
-            height: 3,
-            width: 40,
-            color: isSelected ? const Color(0xFF3D98F4) : Colors.transparent,
-            margin: const EdgeInsets.only(top: 13),
+          _buildStatusFilterSection(),
+          const Divider(color: Color(0xFFCEDBE8), height: 1),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3D98F4)),
+              ),
+            )
+                : _filteredInvoices.isEmpty
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _searchQuery.isNotEmpty
+                        ? 'No invoices found matching "$_searchQuery"'
+                        : 'No invoices found',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (_searchQuery.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                        _filterInvoices();
+                      },
+                      child: const Text('Clear search'),
+                    ),
+                  ],
+                ],
+              ),
+            )
+                : RefreshIndicator(
+              onRefresh: _loadInvoices,
+              color: const Color(0xFF3D98F4),
+              child: ListView.builder(
+                itemCount: _filteredInvoices.length,
+                itemBuilder: (context, index) {
+                  final invoice = _filteredInvoices[index];
+                  return _buildInvoiceItem(invoice);
+                },
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildStatusFilterSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Filter by Status',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0D141C),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _allStatuses.map((status) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildStatusChip(status),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    final bool isSelected = _selectedStatus == status;
+    final int count = _getStatusCount(status);
+    final Color statusColor = _getStatusColor(status);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedStatus = status;
+          _filterInvoices();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? statusColor : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? statusColor : const Color(0xFFE5E7EB),
+            width: 1,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: statusColor.withOpacity(0.3),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            if (isSelected) const SizedBox(width: 6),
+            Text(
+              status,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF0D141C),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: isSelected ? Colors.white : statusColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Paid':
+        return const Color(0xFF4CAF50);
+      case 'Unpaid':
+        return const Color(0xFF3D98F4);
+      case 'Partially Paid':
+        return const Color(0xFFFF9800);
+      case 'Overdue':
+        return const Color(0xFFF44336);
+      case 'Draft':
+        return const Color(0xFF9E9E9E);
+      case 'Rejected':
+        return const Color(0xFFF44336);
+      case 'All':
+      default:
+        return const Color(0xFF3D98F4);
+    }
   }
 
   Widget _buildInvoiceItem(Map<String, dynamic> invoice) {
@@ -309,33 +464,27 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     // Define icon and background color based on status
     IconData iconData;
     Color iconColor = Colors.white; // Default icon color
-    Color backgroundColor;
+    Color backgroundColor = _getStatusColor(status);
 
     switch (status) {
       case 'Paid':
         iconData = Icons.check_circle_outline;
-        backgroundColor = Colors.green.shade600; // Green for paid
         break;
       case 'Partially Paid':
         iconData = Icons.payments_outlined;
-        backgroundColor = Colors.orange.shade600; // Orange for partially paid
         break;
       case 'Overdue':
         iconData = Icons.warning_amber_rounded;
-        backgroundColor = Colors.red.shade600; // Red for overdue
         break;
       case 'Draft':
         iconData = Icons.edit_note;
-        backgroundColor = Colors.blueGrey.shade400; // Grey-blue for draft
         break;
       case 'Rejected':
         iconData = Icons.cancel_outlined;
-        backgroundColor = Colors.red.shade400; // Lighter red for rejected
         break;
       case 'Unpaid': // Approved but not paid yet
       default:
         iconData = Icons.receipt_long;
-        backgroundColor = const Color(0xFF3D98F4); // Blue for unpaid/pending
         break;
     }
 
@@ -374,7 +523,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    invoice['id']!,
+                    invoice['invoiceId'] ?? invoice['id'] ?? 'N/A',
                     style: const TextStyle(
                       color: Color(0xFF0D141C),
                       fontSize: 16,
