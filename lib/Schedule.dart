@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../home_page.dart'; // Import the home_page.dart file
+import '../home_page.dart';
+import 'base_scaffold.dart';
 
 void main() => runApp(const CalendarApp());
 
@@ -149,8 +150,10 @@ class _SchedulePageState extends State<SchedulePage> {
     int totalCells = daysInMonth + firstDayOffset;
     int rows = (totalCells / 7).ceil();
 
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
+    return BaseScaffold(
+      title: 'Schedule',
+      currentIndex: 3,
+      showBackButton: false,
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddAppointmentDialog(),
         child: const Icon(Icons.add),
@@ -161,37 +164,26 @@ class _SchedulePageState extends State<SchedulePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppBar(
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Color(0xFF0D141C)),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                title: Column(
-                  mainAxisSize: MainAxisSize.min,
+              // Custom month navigation header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () => changeMonth(-1),
-                          child: const Icon(Icons.arrow_back_ios, size: 20),
-                        ),
-                        Text(
-                          "${monthNames[currentMonth.month - 1]} ${currentMonth.year}",
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        GestureDetector(
-                          onTap: () => changeMonth(1),
-                          child: const Icon(Icons.arrow_forward_ios, size: 20),
-                        ),
-                      ],
+                    GestureDetector(
+                      onTap: () => changeMonth(-1),
+                      child: const Icon(Icons.arrow_back_ios, size: 20),
+                    ),
+                    Text(
+                      "${monthNames[currentMonth.month - 1]} ${currentMonth.year}",
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    GestureDetector(
+                      onTap: () => changeMonth(1),
+                      child: const Icon(Icons.arrow_forward_ios, size: 20),
                     ),
                   ],
                 ),
-                backgroundColor: Colors.grey[100],
-                elevation: 0,
               ),
               const SizedBox(height: 8),
               Row(

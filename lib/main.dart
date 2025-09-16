@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_assignment/Schedule.dart';
-import 'invoice.dart'; // Import the invoice.dart file
-import 'inventory.dart'; // Import the inventory.dart file
+import 'invoice.dart';
+import 'inventory.dart';
 import 'Customer.dart';
-import 'home_page.dart'; // Import the new home page file
+import 'home_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -66,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const PlaceholderScreen(title: 'Vehicles'),
     const SchedulePage(),
     const CustomerScreen(),
-    const InventoryScreen(),
+    InventoryScreen(),
     const InvoiceScreen(),
   ];
 

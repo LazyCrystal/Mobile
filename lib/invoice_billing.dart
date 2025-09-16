@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'firebase_invoice_service.dart'; // Import Firebase service
 
 // Define a callback for when an invoice is updated
 typedef OnInvoiceUpdated = void Function(Map<String, dynamic> updatedInvoice);
@@ -22,6 +23,7 @@ class _InvoiceBillingScreenState extends State<InvoiceBillingScreen> {
   late Map<String, dynamic> _currentInvoice;
   final TextEditingController _paymentAmountController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isProcessing = false; // Loading state for payment operations
 
   @override
   void initState() {
@@ -69,44 +71,97 @@ class _InvoiceBillingScreenState extends State<InvoiceBillingScreen> {
   }
 
   // Method to record a new payment
-  void _recordPayment() {
+  Future<void> _recordPayment() async {
     if (_formKey.currentState!.validate()) {
       final double payment = double.tryParse(_paymentAmountController.text) ?? 0.0;
       final String paymentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       setState(() {
-        // Add new payment to the list
-        (_currentInvoice['payments'] as List).add({
-          'date': paymentDate,
-          'amount': payment.toStringAsFixed(2),
-        });
-
-        // Update the invoice status based on new paid amount
-        _currentInvoice['status'] = _getInvoiceStatus();
+        _isProcessing = true;
       });
 
-      // Call the callback to update the invoice in the parent list (InvoiceScreen)
-      widget.onInvoiceUpdated(_currentInvoice);
+      try {
+        // Create payment data
+        final paymentData = {
+          'date': paymentDate,
+          'amount': payment.toStringAsFixed(2),
+        };
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment of \$${payment.toStringAsFixed(2)} recorded. Invoice now ${_currentInvoice['status']}.')),
-      );
+        // Add payment to Firebase
+        await FirebaseInvoiceService.addPayment(_currentInvoice['id'], paymentData);
 
-      _paymentAmountController.clear(); // Clear the input field
-      Navigator.of(context).pop(); // Go back to review screen after recording
+        setState(() {
+          // Add new payment to the local list
+          (_currentInvoice['payments'] as List).add(paymentData);
+
+          // Update the invoice status based on new paid amount
+          _currentInvoice['status'] = _getInvoiceStatus();
+        });
+
+        // Call the callback to update the invoice in the parent list (InvoiceScreen)
+        widget.onInvoiceUpdated(_currentInvoice);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Payment of \$${payment.toStringAsFixed(2)} recorded. Invoice now ${_currentInvoice['status']}.')),
+          );
+
+          _paymentAmountController.clear(); // Clear the input field
+          Navigator.of(context).pop(); // Go back to review screen after recording
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error recording payment: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+          });
+        }
+      }
     }
   }
 
   // Method to delete a payment record
-  void _deletePayment(int index) {
+  Future<void> _deletePayment(int index) async {
+    final paymentToDelete = (_currentInvoice['payments'] as List)[index];
+
     setState(() {
-      (_currentInvoice['payments'] as List).removeAt(index);
-      _currentInvoice['status'] = _getInvoiceStatus(); // Re-evaluate status
+      _isProcessing = true;
     });
-    widget.onInvoiceUpdated(_currentInvoice); // Propagate update
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payment record deleted.')),
-    );
+
+    try {
+      // Remove payment from Firebase
+      await FirebaseInvoiceService.removePayment(_currentInvoice['id'], paymentToDelete);
+
+      setState(() {
+        (_currentInvoice['payments'] as List).removeAt(index);
+        _currentInvoice['status'] = _getInvoiceStatus(); // Re-evaluate status
+      });
+
+      widget.onInvoiceUpdated(_currentInvoice); // Propagate update
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment record deleted.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting payment: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
   }
 
   @override
@@ -119,7 +174,7 @@ class _InvoiceBillingScreenState extends State<InvoiceBillingScreen> {
         backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         title: Text(
-          'Billing Records for ${_currentInvoice['id']}',
+          'Billing Records for ${_currentInvoice['invoiceId'] ?? _currentInvoice['id'] ?? 'N/A'}',
           style: const TextStyle(color: Color(0xFF0D141C)),
         ),
         centerTitle: true,
@@ -134,7 +189,7 @@ class _InvoiceBillingScreenState extends State<InvoiceBillingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionTitle('Invoice Summary'),
-            _buildInfoRow('Invoice ID:', _currentInvoice['id']),
+            _buildInfoRow('Invoice ID:', _currentInvoice['invoiceId'] ?? _currentInvoice['id']),
             _buildInfoRow('Customer:', _currentInvoice['customerName']),
             _buildInfoRow('Total Amount:', _currentInvoice['totalAmount']),
             _buildInfoRow('Current Status:', currentStatus, isBold: true),
@@ -186,8 +241,17 @@ class _InvoiceBillingScreenState extends State<InvoiceBillingScreen> {
                             ],
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Color(0xFFD92D20)),
-                            onPressed: () => _deletePayment(index),
+                            icon: _isProcessing
+                                ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD92D20)),
+                              ),
+                            )
+                                : const Icon(Icons.delete_outline, color: Color(0xFFD92D20)),
+                            onPressed: _isProcessing ? null : () => _deletePayment(index),
                           ),
                         ],
                       ),
@@ -240,15 +304,38 @@ class _InvoiceBillingScreenState extends State<InvoiceBillingScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _getRemainingAmount() <= 0.001 ? null : _recordPayment, // Disable if fully paid
+                      onPressed: (_getRemainingAmount() <= 0.001 || _isProcessing) ? null : _recordPayment, // Disable if fully paid or processing
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50), // Green for payment
+                        backgroundColor: _isProcessing ? Colors.grey.shade400 : const Color(0xFF4CAF50), // Green for payment
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
+                      child: _isProcessing
+                          ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Recording...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      )
+                          : const Text(
                         'Record Payment',
                         style: TextStyle(
                           color: Colors.white,
