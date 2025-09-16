@@ -174,18 +174,6 @@ class BaseScaffold extends StatelessWidget {
                 ),
                 _buildDrawerItem(
                   context,
-                  icon: Icons.map_outlined,
-                  title: 'Map (My Location)',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MyLocationMapPage()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  context,
                   icon: Icons.logout,
                   title: 'Logout',
                   onTap: () {
