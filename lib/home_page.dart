@@ -6,6 +6,8 @@ import 'inventory.dart';
 import 'Customer.dart';
 import 'firebase_invoice_service.dart';
 import 'inventory_service.dart';
+import 'customer_service.dart';
+import 'schedule_service.dart';
 import 'base_scaffold.dart';
 
 class HomePage extends StatefulWidget {
@@ -20,13 +22,11 @@ class _HomePageState extends State<HomePage> {
 
   // Dashboard data
   int _totalInvoices = 0;
-  int _unpaidInvoices = 0;
-  int _paidInvoices = 0;
-  int _overdueInvoices = 0;
   double _totalRevenue = 0.0;
   int _totalInventoryItems = 0;
   int _lowStockItems = 0;
-  List<Map<String, dynamic>> _recentInvoices = [];
+  int _totalCustomers = 0;
+  int _upcomingAppointments = 0;
 
   @override
   void initState() {
@@ -43,9 +43,6 @@ class _HomePageState extends State<HomePage> {
       // Load invoices data
       final invoices = await FirebaseInvoiceService.getAllInvoices();
       _totalInvoices = invoices.length;
-      _unpaidInvoices = invoices.where((invoice) => _getInvoiceStatus(invoice) == 'Unpaid').length;
-      _paidInvoices = invoices.where((invoice) => _getInvoiceStatus(invoice) == 'Paid').length;
-      _overdueInvoices = invoices.where((invoice) => _getInvoiceStatus(invoice) == 'Overdue').length;
 
       // Calculate total revenue from paid invoices
       _totalRevenue = invoices
@@ -55,13 +52,16 @@ class _HomePageState extends State<HomePage> {
         return sum + amount;
       });
 
-      // Get recent invoices (last 5)
-      _recentInvoices = invoices.take(5).toList();
-
       // Load inventory data
       final inventoryItems = await InventoryService.getAllInventoryItems();
       _totalInventoryItems = inventoryItems.length;
       _lowStockItems = inventoryItems.where((item) => (item['quantity'] ?? 0) <= 5).length;
+
+      // Load customer count
+      _totalCustomers = await CustomerService.getTotalCustomersCount();
+
+      // Load upcoming appointments count
+      _upcomingAppointments = await ScheduleService.getUpcomingAppointmentsCount();
 
     } catch (e) {
       print('Error loading dashboard data: $e');
@@ -129,8 +129,6 @@ class _HomePageState extends State<HomePage> {
               _buildWelcomeSection(),
               const SizedBox(height: 24),
               _buildStatsGrid(),
-              const SizedBox(height: 24),
-              _buildRecentInvoicesSection(),
               const SizedBox(height: 24),
               _buildQuickActionsSection(),
             ],
@@ -215,28 +213,34 @@ class _HomePageState extends State<HomePage> {
           childAspectRatio: 1.5,
           children: [
             _buildStatCard(
+              'Customers',
+              _totalCustomers.toString(),
+              Icons.people,
+              const Color(0xFF9C27B0),
+            ),
+            _buildStatCard(
+              'Upcoming Appointments',
+              _upcomingAppointments.toString(),
+              Icons.calendar_today,
+              const Color(0xFFFF9800),
+            ),
+            _buildStatCard(
               'Total Invoices',
               _totalInvoices.toString(),
               Icons.receipt_long,
               const Color(0xFF3D98F4),
             ),
             _buildStatCard(
-              'Unpaid',
-              _unpaidInvoices.toString(),
-              Icons.pending_actions,
-              const Color(0xFFFF9800),
-            ),
-            _buildStatCard(
-              'Paid',
-              _paidInvoices.toString(),
-              Icons.check_circle,
+              'Inventory Items',
+              _totalInventoryItems.toString(),
+              Icons.inventory_2,
               const Color(0xFF4CAF50),
             ),
             _buildStatCard(
-              'Overdue',
-              _overdueInvoices.toString(),
-              Icons.warning,
-              const Color(0xFFF44336),
+              'Low Stock',
+              _lowStockItems.toString(),
+              Icons.inventory,
+              const Color(0xFFF57C00),
             ),
           ],
         ),
@@ -284,123 +288,6 @@ class _HomePageState extends State<HomePage> {
               color: Color(0xFF49739C),
               fontWeight: FontWeight.w500,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentInvoicesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Recent Invoices',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0D141C),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const InvoiceScreen()),
-                );
-              },
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (_recentInvoices.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: const Center(
-              child: Text(
-                'No invoices found',
-                style: TextStyle(color: Color(0xFF49739C)),
-              ),
-            ),
-          )
-        else
-          ..._recentInvoices.map((invoice) => _buildInvoiceCard(invoice)),
-      ],
-    );
-  }
-
-  Widget _buildInvoiceCard(Map<String, dynamic> invoice) {
-    final status = _getInvoiceStatus(invoice);
-    final statusColor = _getStatusColor(status);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  invoice['invoiceId'] ?? invoice['id'] ?? 'N/A',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0D141C),
-                  ),
-                ),
-                Text(
-                  invoice['customerName'] ?? 'Unknown Customer',
-                  style: const TextStyle(
-                    color: Color(0xFF49739C),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                invoice['totalAmount'] ?? '\$0.00',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0D141C),
-                ),
-              ),
-              Text(
-                status,
-                style: TextStyle(
-                  color: statusColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -506,25 +393,6 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Paid':
-        return const Color(0xFF4CAF50);
-      case 'Unpaid':
-        return const Color(0xFF3D98F4);
-      case 'Partially Paid':
-        return const Color(0xFFFF9800);
-      case 'Overdue':
-        return const Color(0xFFF44336);
-      case 'Draft':
-        return const Color(0xFF9E9E9E);
-      case 'Rejected':
-        return const Color(0xFFF44336);
-      default:
-        return const Color(0xFF9E9E9E);
-    }
   }
 
 }
