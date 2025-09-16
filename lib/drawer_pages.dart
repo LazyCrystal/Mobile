@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'base_scaffold.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 // My Account Page
 class MyAccountPage extends StatelessWidget {
@@ -875,4 +879,108 @@ class Branch {
     required this.hours,
     required this.isMain,
   });
+}
+
+// My Location Map Page (Option A)
+class MyLocationMapPage extends StatefulWidget {
+  const MyLocationMapPage({super.key});
+
+  @override
+  State<MyLocationMapPage> createState() => _MyLocationMapPageState();
+}
+
+class _MyLocationMapPageState extends State<MyLocationMapPage> {
+  LatLng? _currentLatLng;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    try {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _error = 'Location services are disabled';
+          _loading = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+        setState(() {
+          _error = 'Location permission denied';
+          _loading = false;
+        });
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+      setState(() {
+        _currentLatLng = LatLng(pos.latitude, pos.longitude);
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to get current location';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BaseScaffold(
+      title: 'My Location',
+      currentIndex: 0,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xFFF44336))))
+          : _currentLatLng == null
+          ? const Center(child: Text('Location unavailable'))
+          : FlutterMap(
+        options: MapOptions(
+          initialCenter: _currentLatLng!,
+          initialZoom: 16,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.example.app',
+            retinaMode: true,
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: _currentLatLng!,
+                width: 44,
+                height: 44,
+                child: const Icon(Icons.my_location, color: Color(0xFF3D98F4), size: 36),
+              ),
+            ],
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _initLocation,
+        backgroundColor: const Color(0xFF3D98F4),
+        child: const Icon(Icons.gps_fixed, color: Colors.white),
+      ),
+    );
+  }
 }
