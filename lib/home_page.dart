@@ -9,6 +9,8 @@ import 'inventory_service.dart';
 import 'customer_service.dart';
 import 'schedule_service.dart';
 import 'base_scaffold.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 添加 Firestore 导入
+import 'vehicle.dart'; // 添加 Vehicle 页面导入
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
 
   // Dashboard data
+  int _totalVehicles = 0; // 添加车辆总数
   int _totalInvoices = 0;
   double _totalRevenue = 0.0;
   int _totalInventoryItems = 0;
@@ -39,6 +42,15 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _isLoading = true;
       });
+
+      // 添加：从 Firestore 'vehicles' 集合加载车辆数量
+      try {
+        final vehicleSnapshot = await FirebaseFirestore.instance.collection('vehicles').get();
+        _totalVehicles = vehicleSnapshot.docs.length;
+      } catch (e) {
+        print('Error loading vehicles count: $e');
+        _totalVehicles = 0;
+      }
 
       // Load invoices data
       final invoices = await FirebaseInvoiceService.getAllInvoices();
@@ -212,6 +224,13 @@ class _HomePageState extends State<HomePage> {
           mainAxisSpacing: 16,
           childAspectRatio: 1.5,
           children: [
+            // 添加：车辆统计卡片（第一个）
+            _buildStatCard(
+              'Vehicles',
+              _totalVehicles.toString(),
+              Icons.directions_car,
+              const Color(0xFF2196F3),
+            ),
             _buildStatCard(
               'Customers',
               _totalCustomers.toString(),
@@ -315,6 +334,18 @@ class _HomePageState extends State<HomePage> {
           mainAxisSpacing: 16,
           childAspectRatio: 1.2,
           children: [
+            // 添加：车辆管理快速操作（第一个）
+            _buildQuickActionCard(
+              'Vehicle Management',
+              Icons.directions_car,
+              const Color(0xFF2196F3),
+                  () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const VehiclePage()),
+                );
+              },
+            ),
             _buildQuickActionCard(
               'Create Invoice',
               Icons.add_circle_outline,

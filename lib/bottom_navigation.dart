@@ -4,6 +4,7 @@ import 'invoice.dart';
 import 'inventory.dart';
 import 'Customer.dart';
 import 'home_page.dart';
+import 'vehicle.dart';
 
 class AppBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -51,6 +52,11 @@ class AppBottomNavigationBar extends StatelessWidget {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.directions_car_outlined),
+            activeIcon: Icon(Icons.directions_car),
+            label: 'Vehicle',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.people_outline),
             activeIcon: Icon(Icons.people),
             label: 'Customers',
@@ -89,22 +95,28 @@ class NavigationHelper {
       case 1:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const CustomerScreen()),
+          MaterialPageRoute(builder: (context) => const VehiclePage()),
         );
         break;
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const InvoiceScreen()),
+          MaterialPageRoute(builder: (context) => const CustomerScreen()),
         );
         break;
       case 3:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const SchedulePage()),
+          MaterialPageRoute(builder: (context) => const InvoiceScreen()),
         );
         break;
       case 4:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SchedulePage()),
+        );
+        break;
+      case 5:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => InventoryScreen()),
@@ -118,14 +130,16 @@ class NavigationHelper {
       case '/':
       case '/home':
         return 0;
-      case '/customers':
+      case '/vehicle':
         return 1;
-      case '/invoices':
+      case '/customers':
         return 2;
-      case '/schedule':
+      case '/invoices':
         return 3;
-      case '/inventory':
+      case '/schedule':
         return 4;
+      case '/inventory':
+        return 5;
       default:
         return 0;
     }

@@ -6,7 +6,7 @@ import 'Customer.dart';
 import 'home_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-
+import 'vehicle.dart'; // 添加 Vehicle 页面导入
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,11 +66,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 3; // Default to Inventory tab, as per your latest context
+  int _selectedIndex = 0; // 改为默认选中 Vehicles 标签
 
   // List of screens for bottom navigation
   final List<Widget> _screens = [
-    const PlaceholderScreen(title: 'Vehicles'),
+    const VehiclePage(), // 第一个：Vehicle 页面
     const SchedulePage(),
     const CustomerScreen(),
     InventoryScreen(),
@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFFF8FAFC),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.local_shipping, size: 24),
+            icon: Icon(Icons.directions_car, size: 24), // 改为车辆图标
             label: 'Vehicles',
           ),
           BottomNavigationBarItem(
