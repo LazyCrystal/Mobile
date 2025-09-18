@@ -101,7 +101,7 @@ class NavigationHelper {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const CustomerScreen()),
+          MaterialPageRoute(builder: (context) => const CustomerPage()),
         );
         break;
       case 3:
@@ -113,7 +113,7 @@ class NavigationHelper {
       case 4:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const SchedulePage()),
+          MaterialPageRoute(builder: (context) => const ScheduleScreen()),
         );
         break;
       case 5:

@@ -71,8 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // List of screens for bottom navigation
   final List<Widget> _screens = [
     const VehiclePage(), // 第一个：Vehicle 页面
-    const SchedulePage(),
-    const CustomerScreen(),
+    const ScheduleScreen(),
+    const CustomerPage(),
     InventoryScreen(),
     const InvoiceScreen(),
   ];

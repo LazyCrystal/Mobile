@@ -375,7 +375,7 @@ class _HomePageState extends State<HomePage> {
                   () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const CustomerScreen()),
+                  MaterialPageRoute(builder: (context) => const CustomerPage()),
                 );
               },
             ),
@@ -386,7 +386,7 @@ class _HomePageState extends State<HomePage> {
                   () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SchedulePage()),
+                  MaterialPageRoute(builder: (context) => const ScheduleScreen()),
                 );
               },
             ),
