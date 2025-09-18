@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Stitch Design',
+      title: 'Gearshift Management',
       theme: ThemeData(
         primaryColor: const Color(0xFF0D141C),
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),

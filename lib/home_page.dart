@@ -126,7 +126,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return BaseScaffold(
-      title: 'Stitch Design Dashboard',
+      title: 'Gearshift Management Dashboard',
       currentIndex: 0,
       onRefresh: _loadDashboardData,
       body: _isLoading
@@ -177,7 +177,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Welcome to Stitch Design',
+            'Welcome to Gearshift Management',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 16,

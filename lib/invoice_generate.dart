@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'firebase_invoice_service.dart'; // Import Firebase service
 import 'inventory_service.dart'; // Import inventory service
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Define a callback type for when an invoice is generated
 typedef OnInvoiceGenerated = void Function(Map<String, dynamic> newInvoice);
@@ -24,6 +25,7 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
   final TextEditingController _customerNameController = TextEditingController();
   final TextEditingController _customerEmailController = TextEditingController();
   final TextEditingController _customerAddressController = TextEditingController();
+  final TextEditingController _customerPhoneController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
   // Dates
@@ -45,6 +47,7 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
   bool _isGenerating = false;
   bool _isLoadingInventory = false;
   List<Map<String, dynamic>> _inventoryItems = [];
+  String? _selectedCustomerId;
 
   @override
   void initState() {
@@ -64,6 +67,7 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
     _customerNameController.dispose();
     _customerEmailController.dispose();
     _customerAddressController.dispose();
+    _customerPhoneController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -103,6 +107,59 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
       });
       _calculateTotals(); // Recalculate totals after adding
     });
+  }
+
+  // Select a customer from existing Customers collection
+  Future<void> _selectCustomer() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('customers')
+        .orderBy('name')
+        .get();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Customer'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: snapshot.docs.isEmpty
+              ? const Center(child: Text('No customers found'))
+              : ListView.builder(
+            itemCount: snapshot.docs.length,
+            itemBuilder: (ctx, index) {
+              final doc = snapshot.docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final name = (data['name'] ?? '').toString();
+              final phone = (data['phone'] ?? '').toString();
+              final email = (data['email'] ?? '').toString();
+              final address = (data['address'] ?? '').toString();
+              return ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person)),
+                title: Text(name),
+                subtitle: Text(phone.isNotEmpty ? phone : 'No phone'),
+                onTap: () {
+                  setState(() {
+                    _selectedCustomerId = doc.id;
+                    _customerNameController.text = name;
+                    if (email.isNotEmpty) _customerEmailController.text = email;
+                    if (address.isNotEmpty) _customerAddressController.text = address;
+                    if (phone.isNotEmpty) _customerPhoneController.text = phone;
+                  });
+                  Navigator.of(context).pop();
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Method to remove a line item row
@@ -258,12 +315,53 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
       });
 
       try {
+        // Ensure customer exists in Customers collection; create or update if needed
+        String? customerId = _selectedCustomerId;
+        final String customerName = _customerNameController.text.trim();
+        final String customerPhone = _customerPhoneController.text.trim();
+        final String customerEmail = _customerEmailController.text.trim();
+        final String customerAddress = _customerAddressController.text.trim();
+
+        // If no selected customer, try to find by name+phone; otherwise create new
+        if (customerId == null && customerName.isNotEmpty) {
+          Query query = FirebaseFirestore.instance
+              .collection('customers')
+              .where('name', isEqualTo: customerName);
+          if (customerPhone.isNotEmpty) {
+            query = query.where('phone', isEqualTo: customerPhone);
+          }
+
+          final existing = await query.limit(1).get();
+          if (existing.docs.isNotEmpty) {
+            // Use existing and merge additional contact info if provided
+            final doc = existing.docs.first;
+            customerId = doc.id;
+            await doc.reference.set({
+              if (customerEmail.isNotEmpty) 'email': customerEmail,
+              if (customerAddress.isNotEmpty) 'address': customerAddress,
+              if (customerPhone.isNotEmpty) 'phone': customerPhone,
+            }, SetOptions(merge: true));
+          } else {
+            // Create a new customer entry
+            final newDoc = await FirebaseFirestore.instance.collection('customers').add({
+              'name': customerName,
+              if (customerPhone.isNotEmpty) 'phone': customerPhone,
+              if (customerEmail.isNotEmpty) 'email': customerEmail,
+              if (customerAddress.isNotEmpty) 'address': customerAddress,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            customerId = newDoc.id;
+          }
+        }
+
         // Construct the new invoice data map
         final newInvoice = {
           'invoiceId': _invoiceIdController.text, // Keep original invoice ID for display
+          'customerId': customerId,
           'customerName': _customerNameController.text,
           'customerAddress': _customerAddressController.text,
           'customerEmail': _customerEmailController.text,
+          'customerPhone': _customerPhoneController.text,
           'amount': '\$${_totalAmount.toStringAsFixed(2)}', // Formatted for display
           'issueDate': _issueDate != null ? DateFormat('yyyy-MM-dd').format(_issueDate!) : 'N/A',
           'dueDate': _dueDate != null ? DateFormat('yyyy-MM-dd').format(_dueDate!) : 'N/A',
@@ -360,6 +458,22 @@ class _GenerateInvoiceScreenState extends State<GenerateInvoiceScreen> {
                 controller: _customerNameController,
                 labelText: 'Customer Name',
                 validator: (value) => value!.isEmpty ? 'Please enter customer name' : null,
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _selectCustomer,
+                  icon: const Icon(Icons.person_search, color: Color(0xFF3D98F4)),
+                  label: const Text(
+                    'Pick from Customers',
+                    style: TextStyle(color: Color(0xFF3D98F4), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              _buildTextField(
+                controller: _customerPhoneController,
+                labelText: 'Customer Phone',
+                keyboardType: TextInputType.phone,
               ),
               _buildTextField(
                 controller: _customerEmailController,

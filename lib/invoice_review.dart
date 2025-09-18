@@ -289,6 +289,59 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0D141C)),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Delete Invoice',
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFD92D20)),
+            onPressed: _isUpdating
+                ? null
+                : () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete Invoice'),
+                  content: const Text('Are you sure you want to delete this invoice? This action cannot be undone.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Delete', style: TextStyle(color: Color(0xFFD92D20))),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                setState(() {
+                  _isUpdating = true;
+                });
+                try {
+                  await FirebaseInvoiceService.deleteInvoice(widget.invoiceData['id']);
+                  if (mounted) {
+                    Navigator.of(context).pop({
+                      'deleted': true,
+                      'id': widget.invoiceData['id'],
+                    });
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error deleting invoice: $e')),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      _isUpdating = false;
+                    });
+                  }
+                }
+              }
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

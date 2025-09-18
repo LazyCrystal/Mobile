@@ -154,9 +154,11 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
 
   Future<void> _addNewInvoice(Map<String, dynamic> newInvoice) async {
     try {
-      // Add to Firebase
-      final invoiceId = await FirebaseInvoiceService.createInvoice(newInvoice);
-      newInvoice['id'] = invoiceId;
+      // Save only if not already saved by the generator screen
+      if (newInvoice['id'] == null || (newInvoice['id'] as String).isEmpty) {
+        final invoiceId = await FirebaseInvoiceService.createInvoice(newInvoice);
+        newInvoice['id'] = invoiceId;
+      }
 
       setState(() {
         _allInvoices.insert(0, newInvoice); // Add to beginning of list
@@ -208,7 +210,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   Widget build(BuildContext context) {
     return BaseScaffold(
       title: 'Invoices',
-      currentIndex: 2,
+      currentIndex: 3,
       onRefresh: _loadInvoices,
       floatingActionButton: FloatingActionButton(
         onPressed: () {

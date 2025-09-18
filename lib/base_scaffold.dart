@@ -91,7 +91,7 @@ class BaseScaffold extends StatelessWidget {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    'Stitch Design',
+                    'Gearshift Management',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,

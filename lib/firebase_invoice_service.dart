@@ -92,9 +92,6 @@ class FirebaseInvoiceService {
   // Add a payment to an invoice
   static Future<void> addPayment(String invoiceId, Map<String, dynamic> paymentData) async {
     try {
-      // Add timestamp for payment
-      paymentData['timestamp'] = FieldValue.serverTimestamp();
-
       await _firestore
           .collection(_collectionName)
           .doc(invoiceId)

@@ -236,7 +236,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget build(BuildContext context) {
     return BaseScaffold(
       title: 'Inventory',
-      currentIndex: 4,
+      currentIndex: 5,
       actions: [
         IconButton(
           icon: Icon(Icons.add, color: Color(0xFF0D141C), size: 24),

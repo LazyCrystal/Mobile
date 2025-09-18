@@ -289,7 +289,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   Widget build(BuildContext context) {
     return BaseScaffold(
       title: "Schedule",
-      currentIndex: 2,
+      currentIndex: 4,
       body: Column(
         children: [
           TabBar(

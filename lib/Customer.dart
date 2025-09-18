@@ -123,7 +123,7 @@ class _CustomerPageState extends State<CustomerPage> {
 
     return BaseScaffold(
       title: "Customers",
-      currentIndex: 1,
+      currentIndex: 2,
       body: Column(
         children: [
           Padding(
